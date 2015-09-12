@@ -6,12 +6,37 @@ import csv
 from optparse import OptionParser
 import re
 import shutil
+import json
 
-__author__ = 'hen'
+__author__ = 'Hendrik Strobelt'
 
 
 substring_indicating_miso_summary = '.miso_summary'
 vials_db_name = 'all_miso_summaries.sqlite'
+vials_config_file_name = 'vials_project.json'
+samples_meta_file_name = 'samples.json'
+
+
+def create_vials_project_file(vials_dir, sample_infos, options):
+    config ={
+        "project_type": "miso",
+        "ref_genome": options.ref_genome,
+        "bam_root_dir": ""
+    }
+
+    with open(os.path.join(vials_dir, vials_config_file_name), 'wb') as config_file:
+        json.dump(config, config_file)
+
+    sample_data = {}
+    for sample in sample_infos: # map(lambda x: {"name": x['name'], 'bam_file': x['bam_file']}, sample_infos)
+        sample_data[sample['name']] = sample
+
+    with open(os.path.join(vials_dir,samples_meta_file_name), 'wb') as sample_file:
+        json.dump(sample_data, sample_file)
+
+
+
+
 
 
 def create_db(db_file_name, sample_infos):
@@ -46,8 +71,8 @@ def create_db(db_file_name, sample_infos):
         for sample_meta in sample_infos:
             with open(sample_meta['file']) as sumFile:
                 for sumLine in csv.DictReader(sumFile, delimiter='\t'):
-                    if datalines>100:
-                        break
+                    # if datalines>100:
+                    #     break
                     sumLine['uuid'] = sample_meta['name']+'_'+sumLine['event_name']
                     sumLine['sample'] = sample_meta['name']
                     sumLine['chrom'] = sumLine['chrom'].replace('chr','')
@@ -77,10 +102,7 @@ def create_vials_project(root_dir, name, sample_infos, options):
 
     os.makedirs(vials_dir)
     create_db(os.path.join(vials_dir,vials_db_name), sample_infos)
-
-
-
-
+    create_vials_project_file(vials_dir, sample_infos, options)
 
 
 def read_sample_list_file(sample_file):
@@ -98,12 +120,35 @@ def read_sample_list_file(sample_file):
 
 def write_sample_file(sample_file, samples):
     with open(sample_file, 'wb') as tsvFile:
-        linewriter = csv.writer(tsvFile, delimiter='\t')
+        line_writer = csv.writer(tsvFile, delimiter='\t')
         for sample in samples:
-            linewriter.writerow([sample['name'], os.path.dirname(sample['file']), sample['bam_file']])
+            line_writer.writerow([sample['name'], os.path.dirname(sample['file']), sample['bam_file']])
 
 
-def check_config(root_dir, sample_file):
+def bam_matching(res, matching_dir):
+    print "=== NAIVE MATCHING BAM FILES (CHECK samples.json FILE for correctness) ==="
+    print "Trying to naively match bam files...",
+    if os.path.isdir(matching_dir):
+        all_bams = []
+        for xfile in os.listdir(matching_dir):
+            if xfile.endswith(".bam"):
+                all_bams.append(xfile)
+
+        if len(all_bams) == len(res):
+            for index, bam in enumerate(all_bams):
+                res[index]['bam_file'] = bam
+            print "successful."
+        else:
+            print "failed. Counts of bam files ("+str(len(all_bams))+") " \
+                "and summary files ("+str(len(res))+") does not match."
+
+    else:
+        print "failed. No dir: "+matching_dir
+
+
+
+
+def check_config(root_dir, sample_file, options):
 
     res = []
 
@@ -139,6 +184,11 @@ def check_config(root_dir, sample_file):
                     })
                     increasing_index += 1
 
+    if options.matching_dir:
+        bam_matching(res,options.matching_dir)
+
+
+
     if not sample_file_valid:
         write_sample_file(sample_file,res)
         print "Generated a sample file named '"+sample_file+"'. " \
@@ -153,13 +203,16 @@ def main():
     parser = OptionParser(usage='usage: %prog [options] <root_directory_of_all_miso_summaries> <name_of_project>')
     parser.add_option("-s", default='sample_list.tsv', dest='sample_file', help="define sample file [%default]")
     parser.add_option("-f", default=False, action='store_true', dest='force', help='forces overwrite if vials project already exists [%default]')
+    parser.add_option("-g", default="hg19", dest='ref_genome', help='identifier for reference genome [%default]')
+    parser.add_option("-m", dest='matching_dir', help='Naive matching of .bam filenames to directory names.. see documentation')
+
 
     (options, args) = parser.parse_args()
     if len(args) != 2:
         parser.print_help()
         # parser.error("missing root directory as argument")
     else:
-        sample_infos = check_config(args[0], options.sample_file)
+        sample_infos = check_config(args[0], options.sample_file, options)
         create_vials_project(args[0], args[1], sample_infos, options)
 
 

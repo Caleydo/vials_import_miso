@@ -81,11 +81,13 @@ def create_db(db_file_name, sample_infos):
                 print 'processed ', (datalines-1), " lines total. Last import from ["+sample_meta['file']+"]"
 
         print('indexing database...')
-        cur.execute("CREATE INDEX allEn ON miso_summaries(event_name)")
+        cur.execute("CREATE INDEX all_event_names ON miso_summaries(event_name)")
 
-        print('deriving names...')
+        print('deriving distinct event names...')
         cur.execute("CREATE TABLE  IF NOT EXISTS event_names(name TEXT);")
         cur.execute(" INSERT INTO event_names(name) SELECT DISTINCT(event_name) from miso_summaries;")
+        print('indexing distinct event names...')
+        cur.execute("CREATE INDEX distinct_event_names ON event_names(name)")
 
 
 def create_vials_project(root_dir, name, sample_infos, options):

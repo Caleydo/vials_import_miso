@@ -18,25 +18,21 @@ samples_meta_file_name = 'samples.json'
 
 
 def create_vials_project_file(vials_dir, sample_infos, options):
-    config ={
+    config = {
         "project_type": "miso",
         "ref_genome": options.ref_genome,
         "bam_root_dir": ""
     }
 
     with open(os.path.join(vials_dir, vials_config_file_name), 'wb') as config_file:
-        json.dump(config, config_file)
+        json.dump(config, config_file, indent=4)
 
     sample_data = {}
-    for sample in sample_infos: # map(lambda x: {"name": x['name'], 'bam_file': x['bam_file']}, sample_infos)
+    for sample in sample_infos:  # map(lambda x: {"name": x['name'], 'bam_file': x['bam_file']}, sample_infos)
         sample_data[sample['name']] = sample
 
     with open(os.path.join(vials_dir,samples_meta_file_name), 'wb') as sample_file:
-        json.dump(sample_data, sample_file)
-
-
-
-
+        json.dump(sample_data, sample_file, indent=4)
 
 
 def create_db(db_file_name, sample_infos):
@@ -49,8 +45,8 @@ def create_db(db_file_name, sample_infos):
 
         cur = con.cursor()
 
-        cur.execute("DROP TABLE IF EXISTS MisoSummary")
-        cur.execute("CREATE TABLE MisoSummary("
+        cur.execute("DROP TABLE IF EXISTS miso_summaries")
+        cur.execute("CREATE TABLE miso_summaries("
                     "uuid TEXT, "
                     "sample TEXT, "
                     "event_name TEXT, "
@@ -71,21 +67,25 @@ def create_db(db_file_name, sample_infos):
         for sample_meta in sample_infos:
             with open(sample_meta['file']) as sumFile:
                 for sumLine in csv.DictReader(sumFile, delimiter='\t'):
-                    # if datalines>100:
+                    # if datalines > 100:
                     #     break
                     sumLine['uuid'] = sample_meta['name']+'_'+sumLine['event_name']
                     sumLine['sample'] = sample_meta['name']
-                    sumLine['chrom'] = sumLine['chrom'].replace('chr','')
+                    sumLine['chrom'] = sumLine['chrom'].replace('chr', '')
                     columns = ', '.join(sumLine.keys())
                     placeholders = ', '.join('?' * len(sumLine))
                     sql = '({}) VALUES ({})'.format(columns, placeholders)
-                    cur.execute('INSERT INTO MisoSummary'+sql, sumLine.values())
+                    cur.execute('INSERT INTO miso_summaries '+sql, sumLine.values())
                     datalines+=1
 
                 print 'processed ', (datalines-1), " lines total. Last import from ["+sample_meta['file']+"]"
 
         print('indexing database...')
-        cur.execute("CREATE INDEX allEn ON MisoSummary(event_name)")
+        cur.execute("CREATE INDEX allEn ON miso_summaries(event_name)")
+
+        print('deriving names...')
+        cur.execute("CREATE TABLE  IF NOT EXISTS event_names(name TEXT);")
+        cur.execute(" INSERT INTO event_names(name) SELECT DISTINCT(event_name) from miso_summaries;")
 
 
 def create_vials_project(root_dir, name, sample_infos, options):
@@ -146,8 +146,6 @@ def bam_matching(res, matching_dir):
         print "failed. No dir: "+matching_dir
 
 
-
-
 def check_config(root_dir, sample_file, options):
 
     res = []
@@ -187,8 +185,6 @@ def check_config(root_dir, sample_file, options):
     if options.matching_dir:
         bam_matching(res,options.matching_dir)
 
-
-
     if not sample_file_valid:
         write_sample_file(sample_file,res)
         print "Generated a sample file named '"+sample_file+"'. " \
@@ -205,7 +201,6 @@ def main():
     parser.add_option("-f", default=False, action='store_true', dest='force', help='forces overwrite if vials project already exists [%default]')
     parser.add_option("-g", default="hg19", dest='ref_genome', help='identifier for reference genome [%default]')
     parser.add_option("-m", dest='matching_dir', help='Naive matching of .bam filenames to directory names.. see documentation')
-
 
     (options, args) = parser.parse_args()
     if len(args) != 2:

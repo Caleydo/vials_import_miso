@@ -82,9 +82,6 @@ def main():
     parser.add_option("-o", default='out.json', dest='output', help="define output file [%default]")
     parser.add_option("-w", default='out.wiggle', dest='wiggle', help="define wiggle file [%default]")
 
-    print downsample(np.array([1,2,3,4]), 3)
-    print downsample(np.array([1,2,3,4,5]), 3)
-
     (options, args) = parser.parse_args()
     if len(args) != 2:
         parser.print_help()

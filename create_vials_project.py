@@ -31,7 +31,7 @@ def create_vials_project_file(vials_dir, sample_infos, options):
     for sample in sample_infos:  # map(lambda x: {"name": x['name'], 'bam_file': x['bam_file']}, sample_infos)
         sample_data[sample['name']] = sample
 
-    with open(os.path.join(vials_dir,samples_meta_file_name), 'wb') as sample_file:
+    with open(os.path.join(vials_dir, samples_meta_file_name), 'wb') as sample_file:
         json.dump(sample_data, sample_file, indent=4)
 
 
@@ -57,6 +57,7 @@ def create_db(db_file_name, sample_infos):
                     "counts TEXT, "
                     "assigned_counts TEXT, "
                     "chrom INT, "
+                    "chrom_orig TEXT, "
                     "strand CHAR(1), "
                     "mRNA_starts TEXT, "
                     "mRNA_ends TEXT)")
@@ -71,6 +72,7 @@ def create_db(db_file_name, sample_infos):
                     #     break
                     sumLine['uuid'] = sample_meta['name']+'_'+sumLine['event_name']
                     sumLine['sample'] = sample_meta['name']
+                    sumLine['chrom_orig'] = sumLine['chrom']
                     sumLine['chrom'] = sumLine['chrom'].replace('chr', '')
                     columns = ', '.join(sumLine.keys())
                     placeholders = ', '.join('?' * len(sumLine))

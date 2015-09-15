@@ -47,17 +47,18 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
             print ('opening file')
             bamdata = pysam.Samfile(bam_file, 'rb')
 
-            with open(out_file,'wb') as save_file, open(wiggle_file_path,'wb') as wiggle_file:
-                save_file.writelines('{\n')
-                for index, event in enumerate(all_events):
-                    print index, event
-                    sample_reads = bamdata.fetch(event['chrom'], event['start'], event['end'])
-                    wiggle, sample_jxns = readsToWiggle_pysam(sample_reads, event['start'], event['end'])
+            with open(out_file, 'wb') as save_file:
+                with open(wiggle_file_path,'wb') as wiggle_file:
+                    save_file.writelines('{\n')
+                    for index, event in enumerate(all_events):
+                        print index, event
+                        sample_reads = bamdata.fetch(event['chrom'], event['start'], event['end'])
+                        wiggle, sample_jxns = readsToWiggle_pysam(sample_reads, event['start'], event['end'])
 
-                    save_file.writelines(event['event']+':'+json.dumps(sample_jxns)+'\n')
-                    wiggle_file.writelines(event['event']+':'+('_'.join(map(str,resample(wiggle, 2000).tolist())))+'\n')
+                        save_file.writelines(event['event']+':'+json.dumps(sample_jxns)+'\n')
+                        wiggle_file.writelines(event['event']+':'+('_'.join(map(str,resample(wiggle, 2000).tolist())))+'\n')
 
-                save_file.writelines('}')
+                    save_file.writelines('}')
 
 
 def main():
@@ -75,8 +76,6 @@ def main():
         # parser.error("missing root directory as argument")
     else:
         create_index(args[0], args[1], options.sample_bam_file, options.output, options.wiggle)
-
-
 
 
 if __name__ == '__main__':

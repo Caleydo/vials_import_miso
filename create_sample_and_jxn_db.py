@@ -30,7 +30,6 @@ def downsample(x, size):
         return x
 
 
-
 def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wiggle_name):
     db_file_name = os.path.join(project_dir, vials_db_name)
 
@@ -41,7 +40,7 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
         cur = con.cursor()
 
         all_events = []
-        for event in cur.execute("SELECT DISTINCT event_name, mRNA_starts, mRNA_ends, chrom_orig FROM miso_summaries LIMIT 0,5"):
+        for event in cur.execute("SELECT DISTINCT event_name, mRNA_starts, mRNA_ends, chrom_orig FROM miso_summaries"):
 
             all_starts = map(int,event[1].split(','))
             all_ends = map(int, event[2].split(','))
@@ -52,11 +51,6 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
                 'end': max(all_ends),
                 'chrom': event[3].encode('ascii')
             })
-
-
-
-
-
 
     if sample_bam_file and sample_bam_file !='all':
         bam_file = os.path.join(bam_root,sample_bam_file)
@@ -87,9 +81,6 @@ def main():
     parser.add_option("-s", default='all', dest='sample_bam_file', help="define sample file [%default]")
     parser.add_option("-o", default='out.json', dest='output', help="define output file [%default]")
     parser.add_option("-w", default='out.wiggle', dest='wiggle', help="define wiggle file [%default]")
-    # parser.add_option("-f", default=False, action='store_true', dest='force', help='forces overwrite if vials project already exists [%default]')
-    # parser.add_option("-g", default="hg19", dest='ref_genome', help='identifier for reference genome [%default]')
-    # parser.add_option("-m", dest='matching_dir', help='Naive matching of .bam filenames to directory names.. see documentation')
 
     print downsample(np.array([1,2,3,4]), 3)
     print downsample(np.array([1,2,3,4,5]), 3)
@@ -97,7 +88,6 @@ def main():
     (options, args) = parser.parse_args()
     if len(args) != 2:
         parser.print_help()
-        # parser.error("missing root directory as argument")
     else:
         create_index(args[0], args[1], options.sample_bam_file, options.output, options.wiggle)
 

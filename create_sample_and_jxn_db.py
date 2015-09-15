@@ -5,13 +5,30 @@ import sqlite3 as sqlite
 from misopy.sashimi_plot.plot_utils.plot_gene import readsToWiggle_pysam
 import pysam
 import json
-from scipy.signal import resample
+import numpy as np
+import scipy
+import math
 
 __author__ = 'Hendrik Strobelt'
 
 vials_db_name = 'all_miso_summaries.sqlite'
 vials_config_file_name = 'vials_project.json'
 samples_meta_file_name = 'samples.json'
+
+
+def downsample(x, size):
+
+    if x.size > size:
+        ds_factor = math.floor(float(x.size)/ size)
+        fill_size = ds_factor*size - x.size
+        if fill_size > 0:
+            x = np.append(x, np.zeros(fill_size)*np.NaN)
+        else:
+            x = np.resize(x, ds_factor*size)
+        return scipy.nanmean(x.reshape(-1, ds_factor), axis=1)
+    else:
+        return x
+
 
 
 def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wiggle_name):
@@ -39,6 +56,8 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
 
 
 
+
+
     if sample_bam_file and sample_bam_file !='all':
         bam_file = os.path.join(bam_root,sample_bam_file)
         out_file = os.path.join(project_dir, out_file_name)
@@ -55,8 +74,10 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
                         sample_reads = bamdata.fetch(event['chrom'], event['start'], event['end'])
                         wiggle, sample_jxns = readsToWiggle_pysam(sample_reads, event['start'], event['end'])
 
+
+                        print "wsize:",wiggle.size
                         save_file.writelines(event['event']+':'+json.dumps(sample_jxns)+'\n')
-                        wiggle_file.writelines(event['event']+':'+('_'.join(map(str,resample(wiggle, 2000).tolist())))+'\n')
+                        wiggle_file.writelines(event['event']+':'+('_'.join(map(str, downsample(wiggle, 2000).tolist())))+'\n')
 
                     save_file.writelines('}')
 
@@ -69,6 +90,9 @@ def main():
     # parser.add_option("-f", default=False, action='store_true', dest='force', help='forces overwrite if vials project already exists [%default]')
     # parser.add_option("-g", default="hg19", dest='ref_genome', help='identifier for reference genome [%default]')
     # parser.add_option("-m", dest='matching_dir', help='Naive matching of .bam filenames to directory names.. see documentation')
+
+    print downsample(np.array([1,2,3,4]), 3)
+    print downsample(np.array([1,2,3,4,5]), 3)
 
     (options, args) = parser.parse_args()
     if len(args) != 2:

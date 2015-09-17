@@ -8,6 +8,7 @@ import json
 import numpy as np
 import scipy
 import math
+from scipy.ndimage import zoom
 
 __author__ = 'Hendrik Strobelt'
 
@@ -18,13 +19,17 @@ samples_meta_file_name = 'samples.json'
 
 def downsample(x, size):
     if x.size > size:
-        ds_factor = math.floor(float(x.size) / size)
-        fill_size = ds_factor * size - x.size
-        if fill_size > 0:
-            x = np.append(x, np.zeros(fill_size) * np.NaN)
-        else:
-            x = np.resize(x, ds_factor * size)
-        return scipy.nanmean(x.reshape(-1, ds_factor), axis=1)
+        ds_factor = float(size)/float(x.size)
+        return zoom(x, ds_factor)
+        
+        # ds_factor = math.floor(float(x.size) / size)
+        #
+        # fill_size = ds_factor * size - x.size
+        # if fill_size > 0:
+        #     x = np.append(x, np.zeros(fill_size) * np.NaN)
+        # else:
+        #     x = np.resize(x, ds_factor * size)
+        # return scipy.nanmean(x.reshape(-1, ds_factor), axis=1)
     else:
         return x
 

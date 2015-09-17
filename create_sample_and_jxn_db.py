@@ -17,20 +17,19 @@ samples_meta_file_name = 'samples.json'
 
 
 def downsample(x, size):
-
     if x.size > size:
-        ds_factor = math.floor(float(x.size)/ size)
-        fill_size = ds_factor*size - x.size
+        ds_factor = math.floor(float(x.size) / size)
+        fill_size = ds_factor * size - x.size
         if fill_size > 0:
-            x = np.append(x, np.zeros(fill_size)*np.NaN)
+            x = np.append(x, np.zeros(fill_size) * np.NaN)
         else:
-            x = np.resize(x, ds_factor*size)
+            x = np.resize(x, ds_factor * size)
         return scipy.nanmean(x.reshape(-1, ds_factor), axis=1)
     else:
         return x
 
 
-def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wiggle_name):
+def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wiggle_name, sql_addon):
     db_file_name = os.path.join(project_dir, vials_db_name)
 
     con = sqlite.connect(db_file_name)
@@ -40,9 +39,9 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
         cur = con.cursor()
 
         all_events = []
-        for event in cur.execute("SELECT DISTINCT event_name, mRNA_starts, mRNA_ends, chrom_orig FROM miso_summaries LIMIT 120,20"):
-
-            all_starts = map(int,event[1].split(','))
+        for event in cur.execute(
+                        "SELECT DISTINCT event_name, mRNA_starts, mRNA_ends, chrom_orig FROM miso_summaries " + sql_addon):
+            all_starts = map(int, event[1].split(','))
             all_ends = map(int, event[2].split(','))
             # print event[0], min(all_starts), max(all_ends)
             all_events.append({
@@ -52,8 +51,8 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
                 'chrom': event[3].encode('ascii')
             })
 
-    if sample_bam_file and sample_bam_file !='all':
-        bam_file = os.path.join(bam_root,sample_bam_file)
+    if sample_bam_file and sample_bam_file != 'all':
+        bam_file = os.path.join(bam_root, sample_bam_file)
         out_file = os.path.join(project_dir, out_file_name)
         wiggle_file_path = os.path.join(project_dir, out_wiggle_name)
         if os.path.isfile(bam_file):
@@ -72,8 +71,8 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
 
             print 'already:', already_done_keys
 
-            with open(out_file, 'ab',1) as save_file:
-                with open(wiggle_file_path,'ab', 1) as wiggle_file:
+            with open(out_file, 'ab', 1) as save_file:
+                with open(wiggle_file_path, 'ab', 1) as wiggle_file:
                     save_file.writelines('{\n') if not out_file_exists else None
                     for index, event in enumerate(all_events):
                         if not event['event'] in already_done_keys:
@@ -81,10 +80,10 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
                             sample_reads = bamdata.fetch(event['chrom'], event['start'], event['end'])
                             wiggle, sample_jxns = readsToWiggle_pysam(sample_reads, event['start'], event['end'])
 
-
-                            print "wsize:",wiggle.size
-                            save_file.writelines(event['event']+':'+json.dumps(sample_jxns)+'\n')
-                            wiggle_file.writelines(event['event']+':'+('_'.join(map(str, downsample(wiggle, 2000).tolist())))+'\n')
+                            print "wsize:", wiggle.size
+                            save_file.writelines(event['event'] + ':' + json.dumps(sample_jxns) + '\n')
+                            wiggle_file.writelines(
+                                event['event'] + ':' + ('_'.join(map(str, downsample(wiggle, 2000).tolist()))) + '\n')
 
                     save_file.writelines('}')
 
@@ -94,12 +93,15 @@ def main():
     parser.add_option("-s", default='all', dest='sample_bam_file', help="define sample file [%default]")
     parser.add_option("-o", default='out.json', dest='output', help="define output file [%default]")
     parser.add_option("-w", default='out.wiggle', dest='wiggle', help="define wiggle file [%default]")
+    parser.add_option("-l", default='', dest='sql_addon',
+                      help="define add on for sql query e.g. limit 0,100 [%default]")
 
     (options, args) = parser.parse_args()
+    print options
     if len(args) != 2:
         parser.print_help()
     else:
-        create_index(args[0], args[1], options.sample_bam_file, options.output, options.wiggle)
+        create_index(args[0], args[1], options.sample_bam_file, options.output, options.wiggle, options.sql_addon)
 
 
 if __name__ == '__main__':

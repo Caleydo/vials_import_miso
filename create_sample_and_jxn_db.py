@@ -40,7 +40,7 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
         cur = con.cursor()
 
         all_events = []
-        for event in cur.execute("SELECT DISTINCT event_name, mRNA_starts, mRNA_ends, chrom_orig FROM miso_summaries"):
+        for event in cur.execute("SELECT DISTINCT event_name, mRNA_starts, mRNA_ends, chrom_orig FROM miso_summaries LIMIT 120,20"):
 
             all_starts = map(int,event[1].split(','))
             all_ends = map(int, event[2].split(','))
@@ -60,18 +60,31 @@ def create_index(project_dir, bam_root, sample_bam_file, out_file_name, out_wigg
             print ('opening file')
             bamdata = pysam.Samfile(bam_file, 'rb')
 
-            with open(out_file, 'wb') as save_file:
-                with open(wiggle_file_path,'wb') as wiggle_file:
-                    save_file.writelines('{\n')
+            already_done_keys = []
+            out_file_exists = os.path.isfile(out_file)
+
+            if out_file_exists:
+                with open(out_file) as done_file:
+                    for line in done_file:
+                        parts = line.split(":{")
+                        if len(parts) == 2:
+                            already_done_keys.append(parts[0])
+
+            print 'already:', already_done_keys
+
+            with open(out_file, 'ab',1) as save_file:
+                with open(wiggle_file_path,'ab', 1) as wiggle_file:
+                    save_file.writelines('{\n') if not out_file_exists else None
                     for index, event in enumerate(all_events):
-                        print index, event
-                        sample_reads = bamdata.fetch(event['chrom'], event['start'], event['end'])
-                        wiggle, sample_jxns = readsToWiggle_pysam(sample_reads, event['start'], event['end'])
+                        if not event['event'] in already_done_keys:
+                            print index, event
+                            sample_reads = bamdata.fetch(event['chrom'], event['start'], event['end'])
+                            wiggle, sample_jxns = readsToWiggle_pysam(sample_reads, event['start'], event['end'])
 
 
-                        print "wsize:",wiggle.size
-                        save_file.writelines(event['event']+':'+json.dumps(sample_jxns)+'\n')
-                        wiggle_file.writelines(event['event']+':'+('_'.join(map(str, downsample(wiggle, 2000).tolist())))+'\n')
+                            print "wsize:",wiggle.size
+                            save_file.writelines(event['event']+':'+json.dumps(sample_jxns)+'\n')
+                            wiggle_file.writelines(event['event']+':'+('_'.join(map(str, downsample(wiggle, 2000).tolist())))+'\n')
 
                     save_file.writelines('}')
 
